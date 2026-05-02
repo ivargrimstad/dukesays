@@ -31,11 +31,16 @@ public class TmdbResource {
     @GET
     @Path("session")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createSession(@QueryParam("request_token") String requestToken) throws Exception {
-        String sessionId = tmdbService.createSession(requestToken);
-        JsonObject account = tmdbService.getAccount();
-        String json = "{\"session_id\":\"" + sessionId + "\",\"username\":\"" + account.getString("username") + "\",\"account_id\":" + account.getInt("id") + "}";
-        return Response.ok(json).build();
+    public Response createSession(@QueryParam("request_token") String requestToken) {
+        try {
+            String sessionId = tmdbService.createSession(requestToken);
+            JsonObject account = tmdbService.getAccount();
+            String json = "{\"session_id\":\"" + sessionId + "\",\"username\":\"" + account.getString("username") + "\",\"account_id\":" + account.getInt("id") + "}";
+            return Response.ok(json).build();
+        } catch (Exception e) {
+            String error = "{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
+            return Response.status(Response.Status.BAD_REQUEST).entity(error).build();
+        }
     }
 
     @GET

@@ -1,17 +1,18 @@
 package dukes.service;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.StringReader;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,7 @@ public class TmdbService {
 
     private static final String BASE_URL = "https://api.themoviedb.org/3";
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private Client client;
 
     private static final Map<Integer, String> GENRE_MAP = Map.ofEntries(
             Map.entry(28, "Action"), Map.entry(12, "Adventure"), Map.entry(16, "Animation"),
@@ -40,6 +41,18 @@ public class TmdbService {
     private String apiKey = "5fb797fb41371c74d9d12c26935f40a3";
     private String sessionId;
 
+    @PostConstruct
+    public void init() {
+        client = ClientBuilder.newClient();
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        if (client != null) {
+            client.close();
+        }
+    }
+
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
     }
@@ -56,7 +69,7 @@ public class TmdbService {
         this.sessionId = sessionId;
     }
 
-    public String createRequestToken() throws Exception {
+    public String createRequestToken() {
         JsonObject response = get("/authentication/token/new");
         return response.getString("request_token");
     }
@@ -65,38 +78,82 @@ public class TmdbService {
         return "https://www.themoviedb.org/authenticate/" + requestToken;
     }
 
-    public String createSession(String requestToken) throws Exception {
+    public String createSession(String requestToken) {
         String body = Json.createObjectBuilder()
                 .add("request_token", requestToken)
                 .build()
                 .toString();
 
         JsonObject response = post("/authentication/session/new", body);
+
+        if (!response.getBoolean("success", false)) {
+            String msg = response.getString("status_message", "Token not approved. Please approve on TMDB first.");
+            throw new RuntimeException(msg);
+        }
+
         this.sessionId = response.getString("session_id");
         return sessionId;
     }
 
-    public JsonObject getAccount() throws Exception {
+    public JsonObject getAccount() {
         return get("/account?session_id=" + sessionId);
     }
 
-    public List<JsonObject> getRatedMovies(long accountId) throws Exception {
+    public List<JsonObject> getRatedMovies(long accountId) {
         return fetchAllPages("/account/" + accountId + "/rated/movies?session_id=" + sessionId);
     }
 
-    public List<JsonObject> getFavoriteMovies(long accountId) throws Exception {
+    public List<JsonObject> getFavoriteMovies(long accountId) {
         return fetchAllPages("/account/" + accountId + "/favorite/movies?session_id=" + sessionId);
     }
 
-    public List<JsonObject> getWatchlistMovies(long accountId) throws Exception {
+    public List<JsonObject> getWatchlistMovies(long accountId) {
         return fetchAllPages("/account/" + accountId + "/watchlist/movies?session_id=" + sessionId);
     }
 
-    public JsonObject getMovieDetails(long movieId) throws Exception {
+    public JsonObject getMovieDetails(long movieId) {
         return get("/movie/" + movieId + "?append_to_response=credits");
     }
 
-    private List<JsonObject> fetchAllPages(String path) throws Exception {
+    public void rateMovie(long movieId, double rating) {
+        String body = Json.createObjectBuilder()
+                .add("value", rating)
+                .build()
+                .toString();
+        post("/movie/" + movieId + "/rating?session_id=" + sessionId, body);
+    }
+
+    public void setFavorite(long accountId, long movieId, boolean favorite) {
+        String body = Json.createObjectBuilder()
+                .add("media_type", "movie")
+                .add("media_id", movieId)
+                .add("favorite", favorite)
+                .build()
+                .toString();
+        post("/account/" + accountId + "/favorite?session_id=" + sessionId, body);
+    }
+
+    public void setWatchlist(long accountId, long movieId, boolean watchlist) {
+        String body = Json.createObjectBuilder()
+                .add("media_type", "movie")
+                .add("media_id", movieId)
+                .add("watchlist", watchlist)
+                .build()
+                .toString();
+        post("/account/" + accountId + "/watchlist?session_id=" + sessionId, body);
+    }
+
+    public List<JsonObject> searchMovies(String query) {
+        JsonObject response = get("/search/movie?query=" + query.replace(" ", "+"));
+        JsonArray results = response.getJsonArray("results");
+        List<JsonObject> movies = new ArrayList<>();
+        for (int i = 0; i < Math.min(results.size(), 5); i++) {
+            movies.add(results.getJsonObject(i));
+        }
+        return movies;
+    }
+
+    private List<JsonObject> fetchAllPages(String path) {
         List<JsonObject> allResults = new ArrayList<>();
         int page = 1;
         int totalPages;
@@ -115,37 +172,34 @@ public class TmdbService {
         return allResults;
     }
 
-    private JsonObject get(String path) throws Exception {
+    private JsonObject get(String path) {
         String separator = path.contains("?") ? "&" : "?";
         String url = BASE_URL + path + separator + "api_key=" + apiKey;
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+        Response response = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .get();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        String body = response.readEntity(String.class);
+        response.close();
 
-        try (JsonReader reader = Json.createReader(new StringReader(response.body()))) {
+        try (JsonReader reader = Json.createReader(new StringReader(body))) {
             return reader.readObject();
         }
     }
 
-    private JsonObject post(String path, String body) throws Exception {
+    private JsonObject post(String path, String jsonBody) {
         String separator = path.contains("?") ? "&" : "?";
         String url = BASE_URL + path + separator + "api_key=" + apiKey;
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+        Response response = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .post(Entity.json(jsonBody));
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        String body = response.readEntity(String.class);
+        response.close();
 
-        try (JsonReader reader = Json.createReader(new StringReader(response.body()))) {
+        try (JsonReader reader = Json.createReader(new StringReader(body))) {
             return reader.readObject();
         }
     }

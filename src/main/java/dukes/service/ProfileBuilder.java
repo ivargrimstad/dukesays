@@ -78,6 +78,135 @@ public class ProfileBuilder {
         return profile;
     }
 
+    @Transactional
+    public void rateMovie(Long tmdbUserId, Long tmdbMovieId, double rating) throws Exception {
+        UserProfile profile = findByTmdbUserId(tmdbUserId);
+        if (profile == null) throw new IllegalStateException("Profile not found. Sync first.");
+
+        Movie movie = findOrCreateMovieById(tmdbMovieId);
+        UserMovie userMovie = findUserMovie(profile, movie, UserMovie.Source.RATED);
+
+        if (userMovie == null) {
+            userMovie = new UserMovie();
+            userMovie.setUserProfile(profile);
+            userMovie.setMovie(movie);
+            userMovie.setSource(UserMovie.Source.RATED);
+            profile.getMovies().add(userMovie);
+        }
+        userMovie.setUserRating(rating);
+
+        tmdbService.rateMovie(tmdbMovieId, rating);
+
+        analyzeProfile(profile);
+        em.merge(profile);
+    }
+
+    @Transactional
+    public void favoriteMovie(Long tmdbUserId, Long tmdbMovieId, boolean favorite) throws Exception {
+        UserProfile profile = findByTmdbUserId(tmdbUserId);
+        if (profile == null) throw new IllegalStateException("Profile not found. Sync first.");
+
+        Movie movie = findOrCreateMovieById(tmdbMovieId);
+
+        if (favorite) {
+            UserMovie existing = findUserMovie(profile, movie, UserMovie.Source.FAVORITE);
+            if (existing == null) {
+                UserMovie userMovie = new UserMovie();
+                userMovie.setUserProfile(profile);
+                userMovie.setMovie(movie);
+                userMovie.setSource(UserMovie.Source.FAVORITE);
+                profile.getMovies().add(userMovie);
+            }
+        } else {
+            profile.getMovies().removeIf(um ->
+                    um.getMovie().getTmdbMovieId().equals(tmdbMovieId) && um.getSource() == UserMovie.Source.FAVORITE);
+        }
+
+        tmdbService.setFavorite(tmdbUserId, tmdbMovieId, favorite);
+
+        analyzeProfile(profile);
+        em.merge(profile);
+    }
+
+    @Transactional
+    public void watchlistMovie(Long tmdbUserId, Long tmdbMovieId, boolean watchlist) throws Exception {
+        UserProfile profile = findByTmdbUserId(tmdbUserId);
+        if (profile == null) throw new IllegalStateException("Profile not found. Sync first.");
+
+        Movie movie = findOrCreateMovieById(tmdbMovieId);
+
+        if (watchlist) {
+            UserMovie existing = findUserMovie(profile, movie, UserMovie.Source.WATCHLIST);
+            if (existing == null) {
+                UserMovie userMovie = new UserMovie();
+                userMovie.setUserProfile(profile);
+                userMovie.setMovie(movie);
+                userMovie.setSource(UserMovie.Source.WATCHLIST);
+                profile.getMovies().add(userMovie);
+            }
+        } else {
+            profile.getMovies().removeIf(um ->
+                    um.getMovie().getTmdbMovieId().equals(tmdbMovieId) && um.getSource() == UserMovie.Source.WATCHLIST);
+        }
+
+        tmdbService.setWatchlist(tmdbUserId, tmdbMovieId, watchlist);
+
+        analyzeProfile(profile);
+        em.merge(profile);
+    }
+
+    private Movie findOrCreateMovieById(Long tmdbMovieId) throws Exception {
+        var results = em.createQuery(
+                "SELECT m FROM Movie m WHERE m.tmdbMovieId = :tmdbId", Movie.class)
+                .setParameter("tmdbId", tmdbMovieId)
+                .getResultList();
+
+        if (!results.isEmpty()) {
+            return results.getFirst();
+        }
+
+        JsonObject details = tmdbService.getMovieDetails(tmdbMovieId);
+        Movie movie = new Movie();
+        movie.setTmdbMovieId(tmdbMovieId);
+        movie.setTitle(details.getString("title", "Unknown"));
+
+        String releaseDate = details.getString("release_date", "");
+        if (!releaseDate.isBlank() && releaseDate.length() >= 4) {
+            movie.setYear(Integer.parseInt(releaseDate.substring(0, 4)));
+        }
+
+        if (details.containsKey("genres")) {
+            JsonArray genres = details.getJsonArray("genres");
+            List<String> genreNames = new ArrayList<>();
+            for (int i = 0; i < genres.size(); i++) {
+                genreNames.add(genres.getJsonObject(i).getString("name"));
+            }
+            movie.setGenres(String.join(",", genreNames));
+        }
+
+        if (details.containsKey("credits")) {
+            JsonArray crew = details.getJsonObject("credits").getJsonArray("crew");
+            for (int i = 0; i < crew.size(); i++) {
+                JsonObject member = crew.getJsonObject(i);
+                if ("Director".equals(member.getString("job", ""))) {
+                    movie.setDirector(member.getString("name"));
+                    break;
+                }
+            }
+        }
+
+        movie.setPosterPath(details.getString("poster_path", null));
+        em.persist(movie);
+        return movie;
+    }
+
+    private UserMovie findUserMovie(UserProfile profile, Movie movie, UserMovie.Source source) {
+        return profile.getMovies().stream()
+                .filter(um -> um.getMovie().getTmdbMovieId().equals(movie.getTmdbMovieId()) && um.getSource() == source)
+                .findFirst()
+                .orElse(null);
+    }
+
     private void addMovies(UserProfile profile, List<JsonObject> tmdbMovies, UserMovie.Source source) {
         for (JsonObject tmdbMovie : tmdbMovies) {
             long tmdbMovieId = tmdbMovie.getJsonNumber("id").longValue();

@@ -23,40 +23,26 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Use these dependencies for LangChain4J CDI integration with LLMs-->
-<!--        <dependency>-->
-<!--            <groupId>dev.langchain4j.cdi</groupId>-->
-<!--            <artifactId>langchain4j-cdi-portable-ext</artifactId>-->
-<!--            <version>1.2.0-Beta1</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>dev.langchain4j.cdi.mp</groupId>-->
-<!--            <artifactId>langchain4j-cdi-config</artifactId>-->
-<!--            <version>1.2.0-Beta1</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>dev.langchain4j</groupId>-->
-<!--            <artifactId>langchain4j</artifactId>-->
-<!--            <version>1.13.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>dev.langchain4j</groupId>-->
-<!--            <artifactId>langchain4j-open-ai</artifactId>-->
-<!--            <version>1.13.0</version>-->
-<!--        </dependency>-->
-
-<!--        <dependency>-->
-<!--            <groupId>dev.langchain4j</groupId>-->
-<!--            <artifactId>langchain4j-skills</artifactId>-->
-<!--            <version>1.13.0-beta23</version>-->
-<!--        </dependency>-->
-
-        <!-- Use this dependenci for OmniHai integration with LLMs -->
-<!--        <dependency>-->
-<!--            <groupId>org.omnifaces</groupId>-->
-<!--            <artifactId>omnihai</artifactId>-->
-<!--            <version>1.4</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>dev.langchain4j.cdi</groupId>
+            <artifactId>langchain4j-cdi-portable-ext</artifactId>
+            <version>1.2.0-Beta1</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j.cdi.mp</groupId>
+            <artifactId>langchain4j-cdi-config</artifactId>
+            <version>1.2.0-Beta1</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>1.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>1.13.0</version>
+        </dependency>
 
     </dependencies>
 

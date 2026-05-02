@@ -6,6 +6,7 @@
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
         h1 { color: #333; }
+        input { padding: 8px; font-size: 14px; width: 200px; }
         button { padding: 8px 16px; font-size: 14px; cursor: pointer; background: #01b4e4; color: white; border: none; border-radius: 4px; margin: 4px; }
         button:hover { background: #0193b8; }
         .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
@@ -18,6 +19,13 @@
         .status { padding: 8px; margin: 8px 0; border-radius: 4px; }
         .status-ok { background: #d4edda; color: #155724; }
         .status-err { background: #f8d7da; color: #721c24; }
+        #chatBox { border: 1px solid #ddd; border-radius: 6px; height: 400px; overflow-y: auto; padding: 15px; background: #fafafa; margin-bottom: 10px; }
+        .msg { margin: 8px 0; padding: 10px 14px; border-radius: 12px; max-width: 80%; }
+        .msg-user { background: #01b4e4; color: white; margin-left: auto; text-align: right; }
+        .msg-bot { background: #e9ecef; color: #333; }
+        #chatInput { width: calc(100% - 90px); padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; }
+        #chatSend { padding: 10px 20px; }
+        .typing { color: #999; font-style: italic; }
     </style>
 </head>
 <body>
@@ -54,6 +62,30 @@
         <button onclick="viewStoredMovies()">View Stored Movies</button>
     </div>
 
+    <div class="section hidden" id="step5">
+        <h2>Step 5: Rate / Favorite / Watchlist (via our app)</h2>
+        <p>TMDB Movie ID:</p>
+        <input type="number" id="movieId" placeholder="e.g. 603 (The Matrix)">
+        <br><br>
+        <label>Rating (1-10): <input type="number" id="movieRating" min="1" max="10" step="0.5" value="8"></label>
+        <button onclick="rateMovie()">Rate</button>
+        <br><br>
+        <button onclick="toggleFavorite(true)">Add Favorite</button>
+        <button onclick="toggleFavorite(false)">Remove Favorite</button>
+        <button onclick="toggleWatchlist(true)">Add to Watchlist</button>
+        <button onclick="toggleWatchlist(false)">Remove from Watchlist</button>
+        <div id="movieActionStatus"></div>
+    </div>
+
+    <div class="section hidden" id="chatSection">
+        <h2>Chat with Know-Me Agent</h2>
+        <div id="chatBox"></div>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="chatInput" placeholder="Ask for recommendations, rate movies..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button id="chatSend" onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
     <div class="section hidden" id="resultSection">
         <h2>Results</h2>
         <div id="results"></div>
@@ -86,6 +118,9 @@
                 status.innerHTML = '<div class="status status-ok">Connected as <strong>' + data.username + '</strong> (ID: ' + data.account_id + ')</div>';
                 document.getElementById('step3').classList.remove('hidden');
                 document.getElementById('step4').classList.remove('hidden');
+                document.getElementById('step5').classList.remove('hidden');
+                document.getElementById('chatSection').classList.remove('hidden');
+                startChatSession();
             } catch (e) {
                 status.innerHTML = '<div class="status status-err">Error: ' + e.message + '. Did you approve the token on TMDB?</div>';
             }
@@ -132,6 +167,99 @@
                 ).join('');
             } catch (e) {
                 resultsDiv.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function postMovieAction(path, body) {
+            const status = document.getElementById('movieActionStatus');
+            try {
+                const res = await fetch('/duke-knows-me/api/movies/' + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                status.innerHTML = '<div class="status status-ok">' + JSON.stringify(data) + '</div>';
+            } catch (e) {
+                status.innerHTML = '<div class="status status-err">Error: ' + e.message + '</div>';
+            }
+        }
+
+        function rateMovie() {
+            const movieId = document.getElementById('movieId').value;
+            const rating = document.getElementById('movieRating').value;
+            if (!movieId) { alert('Enter a TMDB movie ID'); return; }
+            postMovieAction('rate', { userId: accountId, tmdbMovieId: parseInt(movieId), rating: parseFloat(rating) });
+        }
+
+        function toggleFavorite(add) {
+            const movieId = document.getElementById('movieId').value;
+            if (!movieId) { alert('Enter a TMDB movie ID'); return; }
+            postMovieAction('favorite', { userId: accountId, tmdbMovieId: parseInt(movieId), favorite: add });
+        }
+
+        function toggleWatchlist(add) {
+            const movieId = document.getElementById('movieId').value;
+            if (!movieId) { alert('Enter a TMDB movie ID'); return; }
+            postMovieAction('watchlist', { userId: accountId, tmdbMovieId: parseInt(movieId), watchlist: add });
+        }
+
+        async function startChatSession() {
+            const typing = document.createElement('div');
+            typing.className = 'msg msg-bot typing';
+            typing.textContent = 'Chaplin is getting ready...';
+            document.getElementById('chatBox').appendChild(typing);
+
+            try {
+                const res = await fetch('/duke-knows-me/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: accountId, message: 'hello' })
+                });
+                const data = await res.json();
+                typing.remove();
+                addMessage(data.reply, false);
+            } catch (e) {
+                typing.remove();
+                addMessage('Chaplin is having trouble starting up: ' + e.message, false);
+            }
+        }
+
+        function addMessage(text, isUser) {
+            const chatBox = document.getElementById('chatBox');
+            const msg = document.createElement('div');
+            msg.className = 'msg ' + (isUser ? 'msg-user' : 'msg-bot');
+            msg.style.whiteSpace = 'pre-wrap';
+            msg.textContent = text;
+            chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            input.value = '';
+
+            const typing = document.createElement('div');
+            typing.className = 'msg msg-bot typing';
+            typing.textContent = 'Thinking...';
+            document.getElementById('chatBox').appendChild(typing);
+
+            try {
+                const res = await fetch('/duke-knows-me/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: accountId, message: message })
+                });
+                const data = await res.json();
+                typing.remove();
+                addMessage(data.reply, false);
+            } catch (e) {
+                typing.remove();
+                addMessage('Error: ' + e.message, false);
             }
         }
 
