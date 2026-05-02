@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Know-Me Engine - TMDB Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        h1 { color: #333; }
+        button { padding: 8px 16px; font-size: 14px; cursor: pointer; background: #01b4e4; color: white; border: none; border-radius: 4px; margin: 4px; }
+        button:hover { background: #0193b8; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
+        .hidden { display: none; }
+        #results { white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 500px; overflow-y: auto; }
+        .movie { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .movie:last-child { border-bottom: none; }
+        .movie-title { font-weight: bold; font-size: 16px; }
+        .movie-rating { color: #e6a817; }
+        .status { padding: 8px; margin: 8px 0; border-radius: 4px; }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-err { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Know-Me Engine - TMDB Test</h1>
+
+    <div class="section">
+        <h2>Step 1: Authenticate with TMDB</h2>
+        <p>Click the button to get a request token. You'll be taken to TMDB to approve it.</p>
+        <button onclick="startAuth()">Get Request Token</button>
+        <div id="authStatus"></div>
+    </div>
+
+    <div class="section hidden" id="step2">
+        <h2>Step 2: Complete Authentication</h2>
+        <p>After approving on TMDB, click below to create your session.</p>
+        <button onclick="completeAuth()">Complete Authentication</button>
+        <div id="sessionStatus"></div>
+    </div>
+
+    <div class="section hidden" id="step3">
+        <h2>Step 3: Fetch Movie Data (TMDB direct)</h2>
+        <button onclick="fetchData('rated')">Rated Movies</button>
+        <button onclick="fetchData('favorites')">Favorites</button>
+        <button onclick="fetchData('watchlist')">Watchlist</button>
+    </div>
+
+    <div class="section hidden" id="step4">
+        <h2>Step 4: Sync to Database (Jakarta Persistence)</h2>
+        <p>This fetches your TMDB data, stores it in the H2 database, and builds your taste profile.</p>
+        <button onclick="syncProfile()">Sync Profile to DB</button>
+        <div id="syncStatus"></div>
+        <br>
+        <button onclick="viewProfile()">View Stored Profile</button>
+        <button onclick="viewStoredMovies()">View Stored Movies</button>
+    </div>
+
+    <div class="section hidden" id="resultSection">
+        <h2>Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let requestToken = '';
+        let accountId = '';
+
+        async function startAuth() {
+            const status = document.getElementById('authStatus');
+            try {
+                const res = await fetch('/duke-knows-me/api/tmdb/auth');
+                const data = await res.json();
+                requestToken = data.request_token;
+                status.innerHTML = '<div class="status status-ok">Token received. Approve it on TMDB then come back here.</div>';
+                document.getElementById('step2').classList.remove('hidden');
+                window.open(data.approval_url, '_blank');
+            } catch (e) {
+                status.innerHTML = '<div class="status status-err">Error: ' + e.message + '</div>';
+            }
+        }
+
+        async function completeAuth() {
+            const status = document.getElementById('sessionStatus');
+            try {
+                const res = await fetch('/duke-knows-me/api/tmdb/session?request_token=' + requestToken);
+                const data = await res.json();
+                accountId = data.account_id;
+                status.innerHTML = '<div class="status status-ok">Connected as <strong>' + data.username + '</strong> (ID: ' + data.account_id + ')</div>';
+                document.getElementById('step3').classList.remove('hidden');
+                document.getElementById('step4').classList.remove('hidden');
+            } catch (e) {
+                status.innerHTML = '<div class="status status-err">Error: ' + e.message + '. Did you approve the token on TMDB?</div>';
+            }
+        }
+
+        async function syncProfile() {
+            const status = document.getElementById('syncStatus');
+            status.innerHTML = '<div class="status">Syncing...</div>';
+            try {
+                const res = await fetch('/duke-knows-me/api/sync/' + accountId, { method: 'POST' });
+                const data = await res.json();
+                status.innerHTML = '<div class="status status-ok">' + data.message + '</div>';
+            } catch (e) {
+                status.innerHTML = '<div class="status status-err">Error: ' + e.message + '</div>';
+            }
+        }
+
+        async function viewProfile() {
+            document.getElementById('resultSection').classList.remove('hidden');
+            const resultsDiv = document.getElementById('results');
+            try {
+                const res = await fetch('/duke-knows-me/api/profile/' + accountId);
+                if (res.status === 404) { resultsDiv.textContent = 'No profile found. Sync first.'; return; }
+                const data = await res.json();
+                resultsDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (e) {
+                resultsDiv.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function viewStoredMovies() {
+            document.getElementById('resultSection').classList.remove('hidden');
+            const resultsDiv = document.getElementById('results');
+            try {
+                const res = await fetch('/duke-knows-me/api/profile/' + accountId + '/movies');
+                const data = await res.json();
+                if (data.length === 0) { resultsDiv.textContent = 'No movies stored. Sync first.'; return; }
+                resultsDiv.innerHTML = data.map(movie =>
+                    '<div class="movie">' +
+                        '<span class="movie-title">' + movie.title + '</span> (' + movie.year + ')' +
+                        (movie.userRating ? ' <span class="movie-rating">★ ' + movie.userRating + '/10</span>' : '') +
+                        ' <small>[' + movie.source + ']</small>' +
+                    '</div>'
+                ).join('');
+            } catch (e) {
+                resultsDiv.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function fetchData(type) {
+            document.getElementById('resultSection').classList.remove('hidden');
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.textContent = 'Loading...';
+
+            try {
+                const res = await fetch('/duke-knows-me/api/tmdb/' + type + '?account_id=' + accountId);
+                const data = await res.json();
+
+                if (data.length === 0) {
+                    resultsDiv.textContent = 'No movies found.';
+                    return;
+                }
+
+                resultsDiv.innerHTML = data.map(movie =>
+                    '<div class="movie">' +
+                        '<span class="movie-title">' + movie.title + '</span> (' + (movie.release_date || '').substring(0, 4) + ')' +
+                        (movie.rating ? ' <span class="movie-rating">★ ' + movie.rating + '/10</span>' : '') +
+                    '</div>'
+                ).join('');
+            } catch (e) {
+                resultsDiv.textContent = 'Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
