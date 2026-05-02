@@ -8,6 +8,7 @@
         <feature>servlet</feature>
         <feature>concurrent</feature>
         <feature>expressionLanguage</feature>
+        <feature>mpConfig-3.1</feature>
     </featureManager>
 
     <httpEndpoint id="defaultHttpEndpoint"
