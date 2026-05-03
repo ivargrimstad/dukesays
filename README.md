@@ -38,10 +38,22 @@ mvn clean package
 
 ### 2. Set Environment Variables
 
+Use the following commands depending on your operating system:
+
+#### macOS and Linux
+
 ```bash
 export OPENAI_API_KEY=your-openai-key
 export TMDB_API_KEY=your-tmdb-api-key
 ```
+
+#### Windows (Command Prompt)
+
+```cmd
+set OPENAI_API_KEY=your-openai-key
+set TMDB_API_KEY=your-tmdb-api-key
+```
+
 
 ### 3. Run on WildFly
 
