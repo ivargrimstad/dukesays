@@ -18,7 +18,7 @@ public class MovieAgentProducer {
     public MovieAgent createMovieAgent() {
         OpenAiChatModel model = OpenAiChatModel.builder()
                 .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName("gpt-4o-mini")
+                .modelName("gpt-4o")
                 .temperature(0.7)
                 .build();
 
