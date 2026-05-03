@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaplin — Your Movie Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'EB Garamond', Georgia, serif;
+            background: #0a0a0a;
+            color: #d4c9a8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Auth screen --- */
+        #authScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            gap: 0;
+            padding: 20px;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #authScreen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.015) 2px,
+                rgba(255,255,255,0.015) 4px
+            );
+            pointer-events: none;
+        }
+
+        .title-card {
+            background: #0e0e0e;
+            border: 3px solid #3a3224;
+            border-radius: 4px;
+            padding: 48px 56px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 60px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.3);
+        }
+
+        .title-card::before {
+            content: '';
+            position: absolute;
+            inset: 6px;
+            border: 1px solid #2a2218;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .auth-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 20px;
+        }
+
+        .auth-icon svg { width: 72px; height: 72px; }
+
+        .app-title {
+            font-size: 42px;
+            font-weight: 600;
+            color: #e8dcc8;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-bottom: 0;
+        }
+
+        .app-divider {
+            width: 60px;
+            height: 1px;
+            background: #3a3224;
+            margin: 12px auto;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            font-style: italic;
+            font-weight: 400;
+            color: #8a7d66;
+            margin-bottom: 32px;
+            letter-spacing: 1px;
+        }
+
+        .auth-card-desc {
+            font-size: 17px;
+            font-weight: 400;
+            color: #d4c9a8;
+            margin-bottom: 28px;
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 32px;
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 16px;
+            font-weight: 600;
+            border: 2px solid #5a4d36;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: transparent;
+            color: #e8dcc8;
+        }
+
+        .btn:hover {
+            background: #e8dcc8;
+            color: #0a0a0a;
+            border-color: #e8dcc8;
+        }
+
+        .btn:disabled {
+            border-color: #2a2218;
+            color: #4a3d2a;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled:hover {
+            background: transparent;
+            color: #4a3d2a;
+        }
+
+        .auth-status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #8a7d66;
+            min-height: 20px;
+            font-style: italic;
+        }
+
+        .auth-status.success { color: #a0b872; }
+        .auth-status.error { color: #c47a6a; }
+
+        #step2Btn { display: none; margin-top: 12px; }
+
+        .footer-text {
+            margin-top: 24px;
+            font-size: 12px;
+            color: #3a3224;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        /* --- Chat screen --- */
+        #chatScreen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- Hero hat --- */
+        .chat-hero {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+
+        .chat-hero.hidden { opacity: 0; }
+
+        .chat-hero svg {
+            width: 180px;
+            height: 180px;
+            opacity: 0.15;
+        }
+
+        /* --- Navbar --- */
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 24px;
+            border-bottom: 1px solid #3a3224;
+            background: #b5b0a6;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        .chat-header.visible { opacity: 1; }
+
+        .chat-header-icon {
+            width: 44px;
+            height: 44px;
+            align-self: flex-start;
+        }
+
+        .chat-header-icon svg { width: 44px; height: 44px; }
+
+        .chat-header-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header-info h1 {
+            font-size: 26px;
+            font-weight: 600;
+            color: #0e0e0c;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .chat-header-line {
+            width: 100%;
+            height: 1px;
+            background: rgba(14,14,12,0.2);
+            margin: 4px 0 2px;
+        }
+
+        .chat-header-info span {
+            font-size: 12px;
+            color: #0e0e0c;
+            font-style: italic;
+            letter-spacing: 0.5px;
+            opacity: 0.5;
+        }
+
+        .chat-user {
+            margin-left: auto;
+            font-size: 14px;
+            color: #3a3224;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chat-user-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #5a7a3a;
+        }
+
+        #chatMessages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #0a0a0a;
+            position: relative;
+        }
+
+        .message-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .message-row.bot { align-self: flex-start; max-width: 75%; }
+        .message-row.user { align-self: flex-end; }
+
+        .chaplin-icon {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .chaplin-icon svg { width: 32px; height: 32px; }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 16px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message-bot {
+            background: #14130f;
+            color: #d4c9a8;
+            border: 1px solid #1e1c16;
+            font-family: 'EB Garamond', Georgia, serif;
+            letter-spacing: 0.3px;
+        }
+
+        .message-user {
+            background: #2a2518;
+            color: #e8dcc8;
+            border: 1px solid #3a3224;
+        }
+
+        .message-typing {
+            background: #14130f;
+            color: #5a4d36;
+            font-style: italic;
+            border: 1px solid #1e1c16;
+        }
+
+        .typing-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        .chat-input-area {
+            padding: 16px 24px;
+            border-top: 1px solid #1a1610;
+            background: #0e0e0c;
+            display: flex;
+            gap: 12px;
+            z-index: 20;
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 12px 16px;
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 15px;
+            background: #14130f;
+            border: 1px solid #2a2518;
+            border-radius: 2px;
+            color: #d4c9a8;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #chatInput:focus { border-color: #5a4d36; }
+
+        #chatInput::placeholder { color: #3a3224; }
+
+        #sendBtn {
+            padding: 12px 24px;
+            background: transparent;
+            color: #d4c9a8;
+            border: 1px solid #3a3224;
+            border-radius: 2px;
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #sendBtn:hover {
+            background: #e8dcc8;
+            color: #0a0a0a;
+            border-color: #e8dcc8;
+        }
+
+        #sendBtn:disabled {
+            border-color: #1a1610;
+            color: #3a3224;
+            cursor: not-allowed;
+        }
+
+        /* scrollbar */
+        #chatMessages::-webkit-scrollbar { width: 4px; }
+        #chatMessages::-webkit-scrollbar-track { background: transparent; }
+        #chatMessages::-webkit-scrollbar-thumb { background: #2a2518; border-radius: 2px; }
+        #chatMessages::-webkit-scrollbar-thumb:hover { background: #3a3224; }
+    </style>
+</head>
+<body>
+
+    <!-- Auth Screen -->
+    <div id="authScreen">
+        <div class="title-card">
+            <div class="auth-icon">
+                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="32" cy="48" rx="22" ry="28" fill="#d4c9a8"/>
+                    <rect x="8" y="24" width="48" height="5" rx="2.5" fill="#1a1610"/>
+                    <rect x="14" y="8" width="36" height="18" rx="6" fill="#1a1610"/>
+                    <rect x="25" y="53" width="14" height="5" rx="1" fill="#1a1610"/>
+                </svg>
+            </div>
+
+            <h1 class="app-title">Chaplin</h1>
+            <div class="app-divider"></div>
+            <h3 class="app-subtitle">movie critic &amp; taste analyst</h3>
+
+            <h2 class="auth-card-desc" id="authDesc">Link your account so Chaplin can peruse your ratings, favourites, and watchlist.</h2>
+
+            <button class="btn" id="step1Btn" onclick="startAuth()">Connect to Chaplin</button>
+            <button class="btn" id="step2Btn" onclick="completeAuth()">I have approved it — continue</button>
+
+            <div class="auth-status" id="authStatus"></div>
+
+            <div class="footer-text">A motion picture experience</div>
+        </div>
+    </div>
+
+    <!-- Chat Screen -->
+    <div id="chatScreen">
+        <!-- Big hat hero - fades when chat starts -->
+        <div class="chat-hero" id="chatHero">
+            <svg viewBox="0 0 64 36" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="24" width="48" height="5" rx="2.5" fill="#d4c9a8"/>
+                <rect x="14" y="8" width="36" height="18" rx="6" fill="#d4c9a8"/>
+            </svg>
+        </div>
+
+        <!-- Navbar - hidden initially, fades in -->
+        <div class="chat-header" id="chatHeader">
+            <div class="chat-header-icon">
+                <svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="32" cy="48" rx="22" ry="28" fill="#0e0e0c"/>
+                    <rect x="8" y="24" width="48" height="5" rx="2.5" fill="#0e0e0c"/>
+                    <rect x="14" y="8" width="36" height="18" rx="6" fill="#0e0e0c"/>
+                    <rect x="25" y="53" width="14" height="5" rx="1" fill="#0e0e0c"/>
+                </svg>
+            </div>
+            <div class="chat-header-info">
+                <h1>Chaplin</h1>
+                <div class="chat-header-line"></div>
+                <span>movie critic &amp; taste analyst</span>
+            </div>
+            <div class="chat-user">
+                <div class="chat-user-dot"></div>
+                <span id="usernameDisplay"></span>
+            </div>
+        </div>
+
+        <div id="chatMessages"></div>
+
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask for recommendations, rate movies, or say 'surprise me'..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendChat()">
+            <button id="sendBtn" onclick="sendChat()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let requestToken = '';
+        let accountId = '';
+        let username = '';
+        let heroVisible = true;
+
+        async function startAuth() {
+            const status = document.getElementById('authStatus');
+            const btn = document.getElementById('step1Btn');
+            btn.disabled = true;
+            btn.textContent = 'Opening TMDB...';
+
+            try {
+                const res = await fetch('/duke-knows-me/api/tmdb/auth');
+                const data = await res.json();
+                requestToken = data.request_token;
+
+                window.open(data.approval_url, '_blank');
+
+                document.getElementById('authDesc').textContent = 'A new window has opened. Kindly approve the request there, then return here and proceed.';
+
+                btn.style.display = 'none';
+                document.getElementById('step2Btn').style.display = 'flex';
+            } catch (e) {
+                status.className = 'auth-status error';
+                status.textContent = 'Something went awry. Do try again.';
+                btn.disabled = false;
+                btn.textContent = 'Connect to Chaplin';
+            }
+        }
+
+        async function completeAuth() {
+            const status = document.getElementById('authStatus');
+            const btn = document.getElementById('step2Btn');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+
+            try {
+                const res = await fetch('/duke-knows-me/api/tmdb/session?request_token=' + requestToken);
+                const data = await res.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                accountId = data.account_id;
+                username = data.username;
+
+                status.className = 'auth-status success';
+                status.textContent = 'Splendid! Connected as ' + username;
+
+                setTimeout(openChat, 800);
+            } catch (e) {
+                status.className = 'auth-status error';
+                status.textContent = 'Not yet approved, it seems. Do try the TMDB window first.';
+                btn.disabled = false;
+                btn.textContent = "I have approved it — continue";
+            }
+        }
+
+        function openChat() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('chatScreen').style.display = 'flex';
+            document.getElementById('usernameDisplay').textContent = username;
+            document.getElementById('chatInput').focus();
+            sendInitialGreeting();
+        }
+
+        function showNavbar() {
+            if (!heroVisible) return;
+            heroVisible = false;
+            document.getElementById('chatHero').classList.add('hidden');
+            document.getElementById('chatHeader').classList.add('visible');
+        }
+
+        async function sendInitialGreeting() {
+            const typing = addMessage('', 'typing');
+
+            try {
+                const res = await fetch('/duke-knows-me/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: accountId, message: 'hello' })
+                });
+                const data = await res.json();
+                typing.remove();
+                showNavbar();
+                addMessage(data.reply, 'bot');
+            } catch (e) {
+                typing.remove();
+                showNavbar();
+                addMessage('I appear to be having some difficulties. Do refresh the page, if you would be so kind.', 'bot');
+            }
+        }
+
+        const chaplinSVG = `<svg viewBox="0 0 64 80" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="32" cy="48" rx="22" ry="28" fill="#d4c9a8"/>
+            <rect x="8" y="24" width="48" height="5" rx="2.5" fill="#1a1610"/>
+            <rect x="14" y="8" width="36" height="18" rx="6" fill="#1a1610"/>
+            <rect x="25" y="53" width="14" height="5" rx="1" fill="#1a1610"/>
+        </svg>`;
+
+        function addMessage(text, type) {
+            const messages = document.getElementById('chatMessages');
+
+            if (type === 'user') {
+                const row = document.createElement('div');
+                row.className = 'message-row user';
+                const msg = document.createElement('div');
+                msg.className = 'message message-user';
+                msg.textContent = text;
+                row.appendChild(msg);
+                messages.appendChild(row);
+                messages.scrollTop = messages.scrollHeight;
+                return row;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'message-row bot';
+
+            const icon = document.createElement('div');
+            icon.className = 'chaplin-icon';
+            icon.innerHTML = chaplinSVG;
+
+            const msg = document.createElement('div');
+            if (type === 'typing') {
+                msg.className = 'message message-typing';
+                msg.innerHTML = 'Chaplin is thinking<span class="typing-dots"></span>';
+            } else {
+                msg.className = 'message message-bot';
+                msg.textContent = text;
+            }
+
+            row.appendChild(icon);
+            row.appendChild(msg);
+            messages.appendChild(row);
+            messages.scrollTop = messages.scrollHeight;
+            return row;
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            input.value = '';
+            document.getElementById('sendBtn').disabled = true;
+
+            const typing = addMessage('', 'typing');
+
+            try {
+                const res = await fetch('/duke-knows-me/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: accountId, message: message })
+                });
+                const data = await res.json();
+                typing.remove();
+                addMessage(data.reply, 'bot');
+            } catch (e) {
+                typing.remove();
+                addMessage('Something went wrong. Try again.', 'bot');
+            }
+
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
+        }
+    </script>
+</body>
+</html>
