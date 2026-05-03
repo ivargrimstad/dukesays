@@ -40,7 +40,7 @@ mvn clean package
 
 Use the following commands depending on your operating system:
 
-#### macOS and Linux
+#### macOS and Linux (Terminal)
 
 ```bash
 export OPENAI_API_KEY=your-openai-key
