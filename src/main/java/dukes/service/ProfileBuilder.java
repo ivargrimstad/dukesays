@@ -102,6 +102,20 @@ public class ProfileBuilder {
     }
 
     @Transactional
+    public void removeRating(Long tmdbUserId, Long tmdbMovieId) throws Exception {
+        UserProfile profile = findByTmdbUserId(tmdbUserId);
+        if (profile == null) throw new IllegalStateException("Profile not found. Sync first.");
+
+        profile.getMovies().removeIf(um ->
+                um.getMovie().getTmdbMovieId().equals(tmdbMovieId) && um.getSource() == UserMovie.Source.RATED);
+
+        tmdbService.deleteRating(tmdbMovieId);
+
+        analyzeProfile(profile);
+        em.merge(profile);
+    }
+
+    @Transactional
     public void favoriteMovie(Long tmdbUserId, Long tmdbMovieId, boolean favorite) throws Exception {
         UserProfile profile = findByTmdbUserId(tmdbUserId);
         if (profile == null) throw new IllegalStateException("Profile not found. Sync first.");

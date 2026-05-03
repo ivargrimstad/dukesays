@@ -100,6 +100,16 @@ public class AgentTools {
         }
     }
 
+    @Tool("Remove a rating from a movie. Only call this when the user explicitly asks to remove or delete a rating. This removes it from both the database and TMDB.")
+    public String removeRating(long userId, long tmdbMovieId) {
+        try {
+            profileBuilder.removeRating(userId, tmdbMovieId);
+            return "Rating removed for movie " + tmdbMovieId;
+        } catch (Exception e) {
+            return "Failed to remove rating: " + e.getMessage();
+        }
+    }
+
     @Tool("Add or remove a movie from the user's favorites. Only call when the user explicitly asks.")
     public String favoriteMovie(long userId, long tmdbMovieId, boolean favorite) {
         try {

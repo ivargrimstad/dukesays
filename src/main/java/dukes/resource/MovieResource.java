@@ -2,6 +2,7 @@ package dukes.resource;
 
 import dukes.model.FavoriteRequest;
 import dukes.model.RateRequest;
+import dukes.model.RemoveRatingRequest;
 import dukes.model.WatchlistRequest;
 import dukes.service.ProfileBuilder;
 import jakarta.inject.Inject;
@@ -26,6 +27,18 @@ public class MovieResource {
         try {
             profileBuilder.rateMovie(request.userId(), request.tmdbMovieId(), request.rating());
             return Response.ok("{\"status\":\"rated\"}").build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\":\"" + e.getMessage() + "\"}").build();
+        }
+    }
+
+    @POST
+    @Path("remove-rating")
+    public Response removeRating(RemoveRatingRequest request) {
+        try {
+            profileBuilder.removeRating(request.userId(), request.tmdbMovieId());
+            return Response.ok("{\"status\":\"rating_removed\"}").build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("{\"error\":\"" + e.getMessage() + "\"}").build();

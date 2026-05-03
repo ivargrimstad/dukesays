@@ -64,6 +64,7 @@ public interface MovieAgent {
             for help, list your capabilities in character. Include:
             - Personalized movie recommendations based on their taste profile
             - Rate movies (syncs to TMDB and database)
+            - Remove ratings from movies (syncs to TMDB and database)
             - Add/remove movies from favorites (syncs to TMDB)
             - Add/remove movies from watchlist (syncs to TMDB)
             - Search for any movie and get details (cast, director, genres, runtime)

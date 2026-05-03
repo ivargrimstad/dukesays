@@ -124,6 +124,10 @@ public class TmdbService {
         post("/movie/" + movieId + "/rating?session_id=" + sessionId, body);
     }
 
+    public void deleteRating(long movieId) {
+        delete("/movie/" + movieId + "/rating?session_id=" + sessionId);
+    }
+
     public void setFavorite(long accountId, long movieId, boolean favorite) {
         String body = Json.createObjectBuilder()
                 .add("media_type", "movie")
@@ -196,6 +200,22 @@ public class TmdbService {
         Response response = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(jsonBody));
+
+        String body = response.readEntity(String.class);
+        response.close();
+
+        try (JsonReader reader = Json.createReader(new StringReader(body))) {
+            return reader.readObject();
+        }
+    }
+
+    private JsonObject delete(String path) {
+        String separator = path.contains("?") ? "&" : "?";
+        String url = BASE_URL + path + separator + "api_key=" + apiKey;
+
+        Response response = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .delete();
 
         String body = response.readEntity(String.class);
         response.close();
