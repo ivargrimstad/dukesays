@@ -38,12 +38,13 @@ public class TmdbService {
         return GENRE_MAP.getOrDefault(id, "Unknown");
     }
 
-    private String apiKey = "5fb797fb41371c74d9d12c26935f40a3";
+    private String apiKey;
     private String sessionId;
 
     @PostConstruct
     public void init() {
         client = ClientBuilder.newClient();
+        apiKey = System.getenv("TMDB_API_KEY");
     }
 
     @PreDestroy

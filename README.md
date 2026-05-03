@@ -40,6 +40,7 @@ mvn clean package
 
 ```bash
 export OPENAI_API_KEY=your-openai-key
+export TMDB_API_KEY=your-tmdb-api-key
 ```
 
 ### 3. Run on WildFly
